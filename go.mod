@@ -7,6 +7,8 @@ require (
 	google.golang.org/api v0.196.0
 )
 
+require github.com/joho/godotenv v1.5.1 // indirect
+
 require (
 	cloud.google.com/go v0.115.1 // indirect
 	cloud.google.com/go/auth v0.9.3 // indirect
