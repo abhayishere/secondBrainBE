@@ -21,7 +21,7 @@ func main() {
 		frontendurl = "8080" // Default to 8080 if PORT is not set
 	}
 	corsHandler := handlers.CORS(
-		handlers.AllowedOrigins([]string{frontendurl}),
+		handlers.AllowedOrigins([]string{"*"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
 	)(mux)
