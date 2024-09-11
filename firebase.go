@@ -8,7 +8,6 @@ import (
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
-	"github.com/joho/godotenv"
 	"google.golang.org/api/option"
 )
 
@@ -17,10 +16,6 @@ var client *firestore.Client
 
 func initFirebase() {
 	ctx := context.Background()
-	err1 := godotenv.Load()
-	if err1 != nil {
-		log.Fatalf("Error loading .env file: %v", err1)
-	}
 	credsbase64 := os.Getenv("FIREBASE_CREDENTIALS")
 	if credsbase64 == "" {
 		log.Fatalf("FIREBASE_CREDENTIALS environment variable not set")
