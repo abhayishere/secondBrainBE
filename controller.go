@@ -9,21 +9,51 @@ import (
 	"net/http"
 	"strings"
 
+	firebase "firebase.google.com/go"
 	"google.golang.org/api/iterator"
 )
 
 type LinkData struct {
 	URL   string `json:"url"`
 	Title string `json:"title"`
+	User  string `json:"user"`
 }
 
 type ScreenshotData struct {
 	Screenshot string `json:"screenshot"`
+	User       string `json:"user"`
+}
+
+func verifyIDToken(idToken string) (string, error) {
+	app, err := firebase.NewApp(context.Background(), nil)
+	if err != nil {
+		return "", err
+	}
+
+	auth, err := app.Auth(context.Background())
+	if err != nil {
+		return "", err
+	}
+
+	// Verify the token
+	token, err := auth.VerifyIDToken(context.Background(), idToken)
+	if err != nil {
+		return "", err
+	}
+
+	return token.UID, nil // Return the user's UID
 }
 
 func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	authHeader := r.Header.Get("Authorization")
+	idToken := strings.TrimPrefix(authHeader, "Bearer ")
+	uid, err := verifyIDToken(idToken)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 	body, err := ioutil.ReadAll(r.Body)
@@ -43,6 +73,7 @@ func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
 	_, _, err = client.Collection("links").Add(ctx, map[string]interface{}{
 		"url":   linkData.URL,
 		"title": linkData.Title,
+		"user":  uid,
 	})
 	if err != nil {
 		http.Error(w, "Failed to save link data", http.StatusInternalServerError)
@@ -62,6 +93,13 @@ func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
 func screenshotHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	authHeader := r.Header.Get("Authorization")
+	idToken := strings.TrimPrefix(authHeader, "Bearer ")
+	uid, err := verifyIDToken(idToken)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 	body, err := ioutil.ReadAll(r.Body)
@@ -92,6 +130,7 @@ func screenshotHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	_, _, err = client.Collection("screenshots").Add(ctx, map[string]interface{}{
 		"screenshot": screenshotData.Screenshot,
+		"user":       uid,
 	})
 	if err != nil {
 		http.Error(w, "Failed to save screenshot data", http.StatusInternalServerError)
@@ -112,9 +151,15 @@ func getLinksHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-
+	authHeader := r.Header.Get("Authorization")
+	idToken := strings.TrimPrefix(authHeader, "Bearer ")
+	uid, err := verifyIDToken(idToken)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	ctx := context.Background()
-	iter := client.Collection("links").Documents(ctx)
+	iter := client.Collection("links").Where("user", "==", uid).Documents(ctx)
 	defer iter.Stop()
 
 	var links []LinkData
@@ -141,9 +186,15 @@ func getScreenshotsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
-
+	authHeader := r.Header.Get("Authorization")
+	idToken := strings.TrimPrefix(authHeader, "Bearer ")
+	uid, err := verifyIDToken(idToken)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 	ctx := context.Background()
-	iter := client.Collection("screenshots").Documents(ctx)
+	iter := client.Collection("screenshots").Where("user", "==", uid).Documents(ctx)
 	defer iter.Stop()
 
 	var screenshots []ScreenshotData
