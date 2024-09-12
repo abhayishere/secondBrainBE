@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 
-	firebase "firebase.google.com/go"
 	"google.golang.org/api/iterator"
 )
 
@@ -25,23 +24,17 @@ type ScreenshotData struct {
 }
 
 func verifyIDToken(idToken string) (string, error) {
-	app, err := firebase.NewApp(context.Background(), nil)
-	if err != nil {
-		return "", err
-	}
-
 	auth, err := app.Auth(context.Background())
 	if err != nil {
+		fmt.Println("Error creating auth")
 		return "", err
 	}
-
-	// Verify the token
 	token, err := auth.VerifyIDToken(context.Background(), idToken)
 	if err != nil {
+		fmt.Println("error extracting token")
 		return "", err
 	}
-
-	return token.UID, nil // Return the user's UID
+	return token.UID, nil
 }
 
 func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +43,7 @@ func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	authHeader := r.Header.Get("Authorization")
-	idToken := strings.TrimPrefix(authHeader, "Bearer ")
+	idToken := strings.Replace(authHeader, "Bearer ", "", 1)
 	uid, err := verifyIDToken(idToken)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -151,8 +144,9 @@ func getLinksHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
+	fmt.Println("Reached captain")
 	authHeader := r.Header.Get("Authorization")
-	idToken := strings.TrimPrefix(authHeader, "Bearer ")
+	idToken := strings.Replace(authHeader, "Bearer ", "", 1)
 	uid, err := verifyIDToken(idToken)
 	if err != nil {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
