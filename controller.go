@@ -16,11 +16,13 @@ type LinkData struct {
 	URL   string `json:"url"`
 	Title string `json:"title"`
 	User  string `json:"user"`
+	ID    string `json:"id"`
 }
 
 type ScreenshotData struct {
 	Screenshot string `json:"screenshot"`
 	User       string `json:"user"`
+	ID         string `json:"id"`
 }
 
 func verifyIDToken(idToken string) (string, error) {
@@ -63,7 +65,7 @@ func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save to Firestore
 	ctx := context.Background()
-	_, _, err = client.Collection("links").Add(ctx, map[string]interface{}{
+	docRef, _, err := client.Collection("links").Add(ctx, map[string]interface{}{
 		"url":   linkData.URL,
 		"title": linkData.Title,
 		"user":  uid,
@@ -72,7 +74,7 @@ func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save link data", http.StatusInternalServerError)
 		return
 	}
-
+	linkData.ID = docRef.ID
 	fmt.Printf("Received URL: %s, Title: %s\n", linkData.URL, linkData.Title)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -121,7 +123,7 @@ func screenshotHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Save to Firestore
 	ctx := context.Background()
-	_, _, err = client.Collection("screenshots").Add(ctx, map[string]interface{}{
+	docRef, _, err := client.Collection("screenshots").Add(ctx, map[string]interface{}{
 		"screenshot": screenshotData.Screenshot,
 		"user":       uid,
 	})
@@ -129,7 +131,7 @@ func screenshotHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to save screenshot data", http.StatusInternalServerError)
 		return
 	}
-
+	screenshotData.ID = docRef.ID
 	fmt.Println("Screenshot received")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -169,6 +171,7 @@ func getLinksHandler(w http.ResponseWriter, r *http.Request) {
 
 		var link LinkData
 		doc.DataTo(&link)
+		link.ID = doc.Ref.ID
 		links = append(links, link)
 	}
 
@@ -204,9 +207,92 @@ func getScreenshotsHandler(w http.ResponseWriter, r *http.Request) {
 
 		var screenshot ScreenshotData
 		doc.DataTo(&screenshot)
+		screenshot.ID = doc.Ref.ID
 		screenshots = append(screenshots, screenshot)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(screenshots)
+}
+func deleteLinkHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	authHeader := r.Header.Get("Authorization")
+	idToken := strings.Replace(authHeader, "Bearer ", "", 1)
+	uid, err := verifyIDToken(idToken)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	linkID := r.URL.Query().Get("id")
+	if linkID == "" {
+		http.Error(w, "Missing link ID", http.StatusBadRequest)
+		return
+	}
+	ctx := context.Background()
+	doc, err := client.Collection("links").Doc(linkID).Get(ctx)
+	if err != nil {
+		http.Error(w, "Link not found", http.StatusNotFound)
+		return
+	}
+	if doc.Data()["user"] != uid {
+		http.Error(w, "Unauthorized to delete this link", http.StatusUnauthorized)
+		return
+	}
+
+	_, err = client.Collection("links").Doc(linkID).Delete(ctx)
+	if err != nil {
+		http.Error(w, "Failed to delete link", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]string{
+		"message": "Link deleted successfully",
+	}
+	json.NewEncoder(w).Encode(response)
+}
+func deleteScreenshotHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	authHeader := r.Header.Get("Authorization")
+	idToken := strings.Replace(authHeader, "Bearer ", "", 1)
+	uid, err := verifyIDToken(idToken)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	screenshotID := r.URL.Query().Get("id")
+	if screenshotID == "" {
+		http.Error(w, "Missing screenshot ID", http.StatusBadRequest)
+		return
+	}
+	ctx := context.Background()
+	doc, err := client.Collection("screenshots").Doc(screenshotID).Get(ctx)
+	if err != nil {
+		http.Error(w, "Screenshot not found", http.StatusNotFound)
+		return
+	}
+	if doc.Data()["user"] != uid {
+		http.Error(w, "Unauthorized to delete this screenshot", http.StatusUnauthorized)
+		return
+	}
+
+	_, err = client.Collection("screenshots").Doc(screenshotID).Delete(ctx)
+	if err != nil {
+		http.Error(w, "Failed to delete screenshot", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]string{
+		"message": "Screenshot deleted successfully",
+	}
+	json.NewEncoder(w).Encode(response)
 }

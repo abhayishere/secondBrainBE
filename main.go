@@ -16,10 +16,8 @@ func main() {
 	mux.HandleFunc("/api/savescreen", screenshotHandler)
 	mux.HandleFunc("/get-links", getLinksHandler)
 	mux.HandleFunc("/get-screenshots", getScreenshotsHandler)
-	frontendurl := os.Getenv("FEURL")
-	if frontendurl == "" {
-		frontendurl = "8080" // Default to 8080 if PORT is not set
-	}
+	mux.HandleFunc("/delete-link", deleteLinkHandler)
+	mux.HandleFunc("/delete-screenshot", deleteScreenshotHandler)
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE"}),
