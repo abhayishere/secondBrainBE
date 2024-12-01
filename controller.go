@@ -13,10 +13,11 @@ import (
 )
 
 type LinkData struct {
-	URL   string `json:"url"`
-	Title string `json:"title"`
-	User  string `json:"user"`
-	ID    string `json:"id"`
+	URL         string `json:"url"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	User        string `json:"user"`
+	ID          string `json:"id"`
 }
 
 type ScreenshotData struct {
@@ -66,9 +67,10 @@ func saveLinkHandler(w http.ResponseWriter, r *http.Request) {
 	// Save to Firestore
 	ctx := context.Background()
 	docRef, _, err := client.Collection("links").Add(ctx, map[string]interface{}{
-		"url":   linkData.URL,
-		"title": linkData.Title,
-		"user":  uid,
+		"url":         linkData.URL,
+		"title":       linkData.Title,
+		"description": linkData.Description,
+		"user":        uid,
 	})
 	if err != nil {
 		http.Error(w, "Failed to save link data", http.StatusInternalServerError)
